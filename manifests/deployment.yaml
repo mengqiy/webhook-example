@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: foo-admission-server
+  name: wh
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      app: foo-admission-server
+  template:
+    metadata:
+      labels:
+        app: foo-admission-server
+    spec:
+      containers:
+      - command:
+        - /bin/bash
+        - -c
+        - ./webhook
+        image: gcr.io/mengqiy-dev/webhook:v0
+        imagePullPolicy: Always
+        name: wh-container
+        ports:
+        - containerPort: 443
+          name: wh-server
+          protocol: TCP
+        volumeMounts:
+        - mountPath: /tmp/cert
+          name: cert
+          readOnly: true
+      serviceAccountName: webhook
+      volumes:
+      - name: cert
+        secret:
+          defaultMode: 420
+          secretName: foo-admission-server-secret
