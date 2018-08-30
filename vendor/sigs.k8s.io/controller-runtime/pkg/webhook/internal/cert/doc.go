@@ -15,88 +15,22 @@ limitations under the License.
 */
 
 /*
-Package cert provides functions to manage webhooks certificates.
+Package cert provides functions to manage certificates for webhookClientConfiguration.
 
-There are 3 typical ways to use this library:
+Create a Provisioner with a CertWriter.
 
-* Using the Sync function as a Reconciler function.
+	provisioner := Provisioner{
+		CertWriter: admission.NewSecretCertWriter(admission.SecretCertWriterOptions{...}),
+	}
 
-* Invoking it directly from the webhook server at startup.
+Provision the certificates for the webhookClientConfig
 
-* Deploying it as an init container along with the webhook server.
-
-Webhook Configuration
-
-The following is an example MutatingWebhookConfiguration in yaml.
-
-	apiVersion: admissionregistration.k8s.io/v1beta1
-	kind: MutatingWebhookConfiguration
-	metadata:
-	  name: myMutatingWebhookConfiguration
-	  annotations:
-	    secret.certprovisioner.kubernetes.io/webhook-1: namespace-bar/secret-foo
-	    secret.certprovisioner.kubernetes.io/webhook-2: default/secret-baz
-	webhooks:
-	- name: webhook-1
-	  rules:
-	  - apiGroups:
-		- ""
-		apiVersions:
-		- v1
-		operations:
-		- "*"
-		resources:
-		- pods
-	  clientConfig:
-		service:
-		  namespace: service-ns-1
-		  name: service-foo
-		  path: "/mutating-pods"
-		caBundle: [] # CA bundle here
-	- name: webhook-2
-	  rules:
-	  - apiGroups:
-		- apps
-		apiVersions:
-		- v1
-		operations:
-		- "*"
-		resources:
-		- deployments
-	  clientConfig:
-		service:
-		  namespace: service-ns-2
-		  name: service-bar
-		  path: "/mutating-deployment"
-		caBundle: [] # CA bundle here
-
-Build the Provisioner
-
-You can choose to provide your own CertGenerator and CertWriter.
-An easier way is to use an empty Options the package will default it with reasonable values.
-The package will write self-signed certificates to secrets.
-
-	// Build a client. You can also create a client with your own config.Config.
-	cl, err := client.New(config.GetConfigOrDie(), client.Options)
+	err := provisioner.Provision(Options{
+		ClientConfig: webhookClientConfig,
+		Objects: []runtime.Object{mutatingWebhookConfiguration, validatingWebhookConfiguration}
+	})
 	if err != nil {
 		// handle error
 	}
-
-	// Build a Provisioner with unspecified CertGenerator and CertWriter.
-	cp := &Provisioner{client: cl}
-
-Provision certificates
-
-Provision certificates for webhook configuration objects' by calling Sync method.
-
-	err = cp.Sync(mwc)
-	if err != nil {
-		// handler error
-	}
-
-When the above MutatingWebhookConfiguration is processed, the cert provisioner will create
-the certificate and create a secret named "secret-foo" in namespace "namespace-bar" for webhook "webhook-1".
-Similarly, it will create an secret named "secret-baz" in namespace "default" for webhook "webhook-2".
-And it will also write the CA back to the WebhookConfiguration.
 */
 package cert
