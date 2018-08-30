@@ -14,60 +14,51 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package main
+package crd
 
 import (
 	"context"
 	"fmt"
 	"net/http"
 
-	corev1 "k8s.io/api/core/v1"
+	crewv1alpha1 "github.com/mengqiy/webhook-example/pkg/apis/crew/v1alpha1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
-// podValidator validates Pods
-type podValidator struct {
-	client  client.Client
-	decoder admission.Decoder
+// Validator validates Pods
+type Validator struct {
+	Client  client.Client
+	Decoder admission.Decoder
 }
 
 // Implement admission.Handler so the controller can handle admission request.
-var _ admission.Handler = &podValidator{}
+var _ admission.Handler = &Validator{}
 
-// podValidator admits a pod iff a specific annotation exists.
-func (v *podValidator) Handle(ctx context.Context, req admission.Request) admission.Response {
-	pod := &corev1.Pod{}
+// Validator admits a pod iff a specific annotation exists.
+func (v *Validator) Handle(ctx context.Context, req admission.Request) admission.Response {
+	fm := &crewv1alpha1.Firstmate{}
 
-	err := v.decoder.Decode(req, pod)
+	err := v.Decoder.Decode(req, fm)
 	if err != nil {
 		return admission.ErrorResponse(http.StatusBadRequest, err)
 	}
 
-	allowed, reason, err := validatePodsFn(ctx, pod)
+	allowed, reason, err := validateFirstMateFn(ctx, fm)
 	if err != nil {
 		return admission.ErrorResponse(http.StatusInternalServerError, err)
 	}
 	return admission.ValidationResponse(allowed, reason)
 }
 
-func validatePodsFn(ctx context.Context, pod *corev1.Pod) (bool, string, error) {
+func validateFirstMateFn(ctx context.Context, fm *crewv1alpha1.Firstmate) (bool, string, error) {
 	v, ok := ctx.Value(admission.StringKey("foo")).(string)
 	if !ok {
 		return false, "",
 			fmt.Errorf("the value associated with key %q is expected to be a string", v)
 	}
-	annotations := pod.GetAnnotations()
-	key := "example-mutating-admission-webhook"
-	anno, found := annotations[key]
-	switch {
-	case !found:
-		return found, fmt.Sprintf("failed to find annotation with key: %q", key), nil
-	case found && anno == v:
-		return found, "", nil
-	case found && anno != v:
-		return false,
-			fmt.Sprintf("the value associate with key %q is expected to be %q, but got %q", "foo", v, anno), nil
+	if fm.Spec.Foo != v {
+		return false, "can't find desired value with spec.foo", nil
 	}
-	return false, "", nil
+	return true, "", nil
 }

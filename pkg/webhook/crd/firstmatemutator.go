@@ -14,52 +14,50 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package main
+package crd
 
 import (
 	"context"
 	"fmt"
 	"net/http"
 
-	corev1 "k8s.io/api/core/v1"
+	crewv1alpha1 "github.com/mengqiy/webhook-example/pkg/apis/crew/v1alpha1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
-// podAnnotator annotates Pods
-type podAnnotator struct {
-	client  client.Client
-	decoder admission.Decoder
+// Mutator annotates Pods
+type Mutator struct {
+	Client  client.Client
+	Decoder admission.Decoder
 }
 
 // Implement admission.Handler so the controller can handle admission request.
-var _ admission.Handler = &podAnnotator{}
+var _ admission.Handler = &Mutator{}
 
-// podAnnotator adds an annotation to every incoming pods.
-func (a *podAnnotator) Handle(ctx context.Context, req admission.Request) admission.Response {
-	pod := &corev1.Pod{}
+// Mutator changes a field in a CR.
+func (a *Mutator) Handle(ctx context.Context, req admission.Request) admission.Response {
+	fm := &crewv1alpha1.Firstmate{}
 
-	err := a.decoder.Decode(req, pod)
+	err := a.Decoder.Decode(req, fm)
 	if err != nil {
 		return admission.ErrorResponse(http.StatusBadRequest, err)
 	}
-	copy := pod.DeepCopy()
+	copy := fm.DeepCopy()
 
-	err = mutatePodsFn(ctx, copy)
+	err = mutateFirstMateFn(ctx, copy)
 	if err != nil {
 		return admission.ErrorResponse(http.StatusInternalServerError, err)
 	}
-	return admission.PatchResponse(pod, copy)
+	return admission.PatchResponse(fm, copy)
 }
 
-// mutatePodsFn add an annotation to the given pod
-func mutatePodsFn(ctx context.Context, pod *corev1.Pod) error {
+// mutateFirstMateFn add an annotation to the given pod
+func mutateFirstMateFn(ctx context.Context, fm *crewv1alpha1.Firstmate) error {
 	v, ok := ctx.Value(admission.StringKey("foo")).(string)
 	if !ok {
 		return fmt.Errorf("the value associated with %v is expected to be a string", "foo")
 	}
-	anno := pod.GetAnnotations()
-	anno["example-mutating-admission-webhook"] = v
-	pod.SetAnnotations(anno)
+	fm.Spec.Foo = v
 	return nil
 }

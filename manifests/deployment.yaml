@@ -18,8 +18,8 @@ spec:
       - command:
         - /bin/bash
         - -c
-        - ./webhook
-        image: gcr.io/mengqiy-dev/webhook:v0
+        - ./manager
+        image: gcr.io/mengqiy-dev/manager:v0
         imagePullPolicy: Always
         name: wh-container
         ports:
